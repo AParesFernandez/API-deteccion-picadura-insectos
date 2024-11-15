@@ -1,0 +1,12 @@
+# .nixpacks
+
+name: my-python-app
+
+# Dependencias que deben instalarse durante la compilación
+build:
+  python: "3.12.6"  # Puedes ajustar la versión de Python si es necesario
+  install:
+    - pip install --no-cache-dir -r requirements.txt
+
+# Comando para ejecutar la aplicación
+run: gunicorn app:app --bind 0.0.0.0:8000
