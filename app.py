@@ -3,9 +3,11 @@ from flask import app
 from dotenv import load_dotenv
 import base64
 from flask import Flask, request, jsonify, render_template
-import cv2
+import pyscreenshot
+from PIL import Image
 import numpy as np
 import os
+import io
 from inference_sdk import InferenceHTTPClient
 
 app = Flask(__name__)
@@ -42,39 +44,38 @@ def predict():
         return jsonify({"success": False, "message": "No se ha seleccionado ninguna imagen."}), 400
 
     try:
-        img_array = np.frombuffer(file.read(), np.uint8)
-        image = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-        if image is None:
-            return jsonify({"success": False, "message": "Error al cargar la imagen."}), 400
+        # Convertir la imagen usando PIL
+        image = Image.open(file)
+        # Convertir a base64
+        buffered = io.BytesIO()
+        image.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
 
-        # Aquí haz la predicción con el modelo
-        #hacer que el resultado sea solo la clase de la predicción
-        result = CLIENT.infer(image, model_id=MODEL_ID)
+        # Hacer la predicción con la imagen en base64
+        result = CLIENT.infer(img_str, model_id=MODEL_ID)
         return jsonify({"success": True, "prediction": result['predictions'][0]['class']})
         
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
-    
+
 @app.route('/predict_webcam', methods=['POST'])
 def predict_webcam():
-    data = request.get_json()  # Obtener datos JSON
+    data = request.get_json()
     if 'image' not in data:
         return jsonify({'success': False, 'message': 'No se recibió imagen.'}), 400
 
-    # Decodificar la imagen de base64
-    image_data = data['image'].split(',')[1]  # Eliminar la parte 'data:image/png;base64,'
-    image_data = base64.b64decode(image_data)  # Decodificar base64
-    np_image = np.frombuffer(image_data, np.uint8)  # Convertir a array de NumPy
-    image = cv2.imdecode(np_image, cv2.IMREAD_COLOR)  # Leer la imagen con OpenCV
-
-    # Realizar inferencia
     try:
-        result = CLIENT.infer(image, model_id=MODEL_ID)
-        return jsonify({"success": True, "prediction": result['predictions'][0]['class']})  # Retornar la predicción sin comillas
+        # Usar directamente la imagen en base64
+        image_data = data['image'].split(',')[1]
+        
+        # Realizar inferencia con la imagen en base64
+        result = CLIENT.infer(image_data, model_id=MODEL_ID)
+        return jsonify({"success": True, "prediction": result['predictions'][0]['class']})
     
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
-
+    
+    
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # Usa el puerto asignado o 5000 por defecto
     app.run(host="0.0.0.0", port=port, debug=True)
