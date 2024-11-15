@@ -15,3 +15,7 @@ EXPOSE 8000
 
 # Comando para ejecutar la aplicación con Gunicorn
 CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8000"]
+
+#arreglar problema opencv
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx
